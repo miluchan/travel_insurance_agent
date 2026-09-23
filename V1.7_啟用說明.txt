@@ -1,0 +1,6 @@
+V1.7 真正 AI Vision
+1. source .venv/bin/activate
+2. pip install -r requirements.txt
+3. export OPENAI_API_KEY="您的 API Key"
+4. python app.py
+原始 PDF/JPG/PNG 直接送 AI，不先 OCR、不使用固定答案。
