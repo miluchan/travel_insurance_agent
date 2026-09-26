@@ -1,5 +1,0 @@
-Flask>=3,<4
-
-pypdf>=4,<6
-
-openai>=1.0
