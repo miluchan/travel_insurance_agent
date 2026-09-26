@@ -1,0 +1,32 @@
+V1.9.4.5｜真正 AI Vision 證件辨識
+
+啟動前：
+1. 進入專案資料夾並啟用既有 .venv。
+2. pip install -r requirements.txt
+3. export OPENAI_API_KEY="您的 API Key"
+4. 可選：export OPENAI_VISION_MODEL="gpt-5.6-luna"
+5. python app.py
+
+測試流程：
+Demo Quote → 我要投保 → AI投保資料助手
+→ 📷拍攝／上傳證件 → 選擇測試證件圖片
+→ AI Vision → Trust Gate → 確認並帶入投保資料
+
+Trust Gate：
+- AI 先回傳 value + raw_text + confidence。
+- 程式碼再做 Trust Gate；confidence >= 0.90 且有值才標示 accepted。
+- accepted 才會自動填入。
+- 其餘欄位標示 needs_confirmation，必須人工確認／補齊。
+- 不會從檔名、metadata 或其他欄位猜資料。
+
+V1.9.4.5 範圍：
+- 一次先辨識 1 張證件，視為要保人／第1位被保險人候選資料。
+- 擷取：姓名、身分證字號/證件號碼、生日。
+- 不擷取地址、照片、生物特徵等非必要資料。
+- 支援 PNG/JPG/JPEG/WEBP。
+- 請優先使用測試／遮罩證件，不要使用真實敏感個資。
+
+下一階段可做：
+- 多張證件連續上傳 → 自動對應多位旅客。
+- 每位旅客逐欄確認。
+- 台灣身分證格式檢核／生日與前一步 DOB 交叉比對。

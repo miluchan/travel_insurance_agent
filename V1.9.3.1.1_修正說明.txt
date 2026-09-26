@@ -1,0 +1,11 @@
+修正：按「下一步／AI 幫我找可投保商品」出現「生日筆數與旅客人數不一致」。
+
+原因：
+前端已依目前畫面建立生日欄位，但送出生日時，後端 Session 的 Travel Profile 旅客總數可能仍是上一個狀態，
+造成 DOB 筆數與舊 people 數字比較而被擋下。
+
+V1.9.3.1.1：
+1. 先同步目前旅客人數，再送 DOB。
+2. 後端 traveler list 同時參考 adults+children+seniors、people、已存 DOB，避免舊 people 截斷。
+3. 不再把內部同步時差直接丟給客戶。
+4. 生日仍必須全部填完。

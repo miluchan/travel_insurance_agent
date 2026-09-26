@@ -1,0 +1,7 @@
+V1.7.11 AI Trust Gate
+- Vision辨識結果先視為 evidence，不直接等同正式 Travel Profile。
+- 文件缺少年份：禁止 AI 補 2001/2026 等年份；start/end 清空為待確認。
+- 單一航段 arrival_time 不得當成 return/end。
+- 單一機票/登機證不顯示「已合併每日行程」。
+- 航段顯示起飛→抵達時間；缺資料明確顯示待確認。
+- 保險期間仍由客戶自行填寫的 home-to-home 時間決定。

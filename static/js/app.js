@@ -19,7 +19,8 @@ function data(){let c=$("#country").value,ci=$("#city").value;if(c==="其他")c=
 function syncForm(p){if(p.start_date&&!$("#start").value)$("#start").value=dash(p.start_date);if(p.end_date&&!$("#end").value)$("#end").value=dash(p.end_date);if(p.country){$("#country").value=cities[p.country]?p.country:"其他";setCities(p.country,p.city);if(!cities[p.country])$("#countryOther").value=p.country}if(p.city&&!cities[p.country]?.includes(p.city)){$("#city").value="其他";$("#cityOther").value=p.city}if(p.adults!=null)$("#adults").textContent=p.adults;if(p.children!=null)$("#children").textContent=p.children;if(p.seniors!=null)$("#seniors").textContent=p.seniors;if(p.budget_range){let x=$(`input[name="budget"][value="${p.budget_range}"]`);if(x)x.checked=true}$$('#concerns input').forEach(x=>x.checked=(p.concerns||[]).includes(x.value))}
 function render(p){
  syncForm(p);$("#empty").classList.add("hidden");$("#profile").classList.remove("hidden");
- let tags=(p.concerns||[]).map(x=>`<span class="tag">✓ ${x}</span>`).join("")||"尚未指定";
+ const coreSet=new Set(["意外傷害","海外醫療","緊急救援","行李損失","班機延誤","行李延誤"]);
+ let tags=(p.concerns||[]).map(x=>`<span class="tag">${coreSet.has(x)?"✓":"＋"} ${x}</span>`).join("")||"尚未指定";
  let insuranceDays="－";
  if(p.start_date&&p.end_date){
    if(window.exactTripTimes?.start&&window.exactTripTimes?.end){
@@ -52,7 +53,7 @@ $$('#concerns input').forEach(x=>x.onchange=async()=>{
  if(selectedPlan && !$('#planResult').classList.contains('hidden')){
   await getPlan(selectedPlan.tier,{accident:selectedPlan.accident,medical:selectedPlan.medical,rescue:selectedPlan.rescue});
  }
-});$$(".counters button").forEach(b=>b.onclick=()=>{let x=$("#"+b.dataset.id);x.textContent=Math.max(0,+x.textContent+(+b.dataset.d));sync()});
+});$$(".counters button").forEach(b=>b.onclick=async()=>{let x=$("#"+b.dataset.id);x.textContent=Math.max(0,+x.textContent+(+b.dataset.d));await sync();if(typeof buildDOBPanel==="function")buildDOBPanel()});
 
 let currentPlanOptions=[];let selectedPlan=null;
 function money(n){return Number(n||0).toLocaleString()}
@@ -85,59 +86,30 @@ function planHtml(selected,opts){
  let extras=(selected.extras||[]).map(x=>`<span class="tag">＋ ${x}</span>`).join('')||'<span class="muted">目前沒有額外加選保障</span>';
  let core=(selected.core||[]).map(x=>`<span class="tag">✓ ${x}</span>`).join('');
  let base=opts.find(o=>o.tier===selected.tier)||selected; let coreCount=(selected.core||[]).length;
- return `<div class="plan-head"><div><small>AI 保障規劃｜V1.8.4.3</small><h2>${selected.scenario_name}：先選三個方向，再用15宮格精準微調</h2></div><div class="price"><small>${selected.people}人／${selected.days}天</small><b>Demo總保費 NT$ ${money(selected.total)}</b></div></div>
+ return `<div class="plan-head"><div><small>AI 保障規劃｜V1.8.3.3</small><h2>${selected.scenario_name}：先選三個方向，再用15宮格精準微調</h2></div><div class="price"><small>${selected.people}人／${selected.days}天</small><b>Demo總保費 NT$ ${money(selected.total)}</b></div></div>
  <div class="ai-explain"><b>AI這次的判斷：</b>${selected.scenario_reason}<br>${coreCount}項核心保障先納入；第一層只突出 <b>意外、海外醫療、緊急救援</b> 三個主要額度。</div>
  <div class="tier-grid">${opts.map(o=>tierCard(o,selected)).join('')}</div>
  <div class="micro-panel"><div class="micro-title"><div><small>第二步｜AI 精準微調 3×5</small><h3>${selected.label}</h3></div><span class="demo-pill">Demo 試算</span></div>
   <div class="micro-row"><b>意外傷害</b><div>${selectButtons('accident',selected.accident,base.accident)}</div></div>
   <div class="micro-row"><b>海外醫療</b><div>${selectButtons('medical',selected.medical,base.medical)}</div></div>
   <div class="micro-row"><b>緊急救援</b><div>${selectButtons('rescue',selected.rescue,base.rescue)}</div></div>
-  <div class="micro-hint">可自由搭配：三列各選 1 格，共選 3 格；只改您點選的那一項，其餘兩項不變。相同三個保額組合，Demo 保費相同。</div>
-  <div class="core-summary"><b>已納入${coreCount}項核心保障</b><div>${core}</div></div>
-  <details><summary>查看個人關注／其他保障</summary><div class="extras">${extras}</div></details>
+  <div class="micro-hint helper-blue">可自由搭配：三列各選 1 格，共選 3 格。</div>
+  <div class="core-summary"><b>已納入 ${coreCount} 項核心保障</b><div>${core}</div>${(selected.extras||[]).length?`<div class="extras"><b>＋新增保障</b> ${extras}</div>`:""}</div>
  </div>
+ 
  <div class="decision-bar"><button class="decision-btn" data-tier="economy">再省一點</button><button class="decision-btn recommended" data-tier="balanced">✨ AI建議</button><button class="decision-btn" data-tier="enhanced">保障高一點</button></div>
- <div class="demo-note">⚠️ V1.8.4 為操作流程 Prototype。以上保費是 Demo 試算，不是任何保險公司的正式報價。兒童、長輩及各公司實際可售保額，正式版必須再由商品規則與 Rate Engine／API 驗證。</div>
- <button id="applyNow" class="apply-now">就照這個，進入投保資料</button>`;
+ <div class="demo-note">⚠️ V1.8.3.3 為操作流程 Prototype。以上保費是 Demo 試算，不是任何保險公司的正式報價。兒童、長輩及各公司實際可售保額，正式版必須再由商品規則與 Rate Engine／API 驗證。</div>
+  <div class="plan-next-wrap"><button id="planNext" type="button" class="apply-now">下一步：AI 幫我找可投保商品</button></div>
+`;
 }
-
-function productMatchHtml(d){
- const labels=['想省一點','較符合目前需求','保障／服務多一點'];
- const cards=(d.matches||[]).map((m,i)=>{
-  const a=m.display_amounts||{};
-  const missing=(m.missing||[]);
-  const focus=(m.matched||[]).filter(x=>!['意外傷害','海外醫療','緊急救援'].includes(x));
-  return `<div class="match-card ${i===1?'recommended':''}">
-   <div class="match-rank">${labels[i]||m.role}${i===1?'　⭐ AI建議':''}</div>
-   <h3>${m.insurer}<br>${m.plan}</h3>
-   <div class="match-amounts"><div><span>意外</span><b>${a.accident||'—'}萬</b></div><div><span>海外醫療</span><b>${a.medical||'—'}萬</b></div><div><span>緊急救援</span><b>${a.rescue||'—'}萬</b></div></div>
-   <div class="match-score"><b>需求接近度 ${m.amount_fit}%</b></div>
-   <div class="match-premium"><span>Demo比較保費</span><b>NT$ ${Number(m.demo_premium_per_person||0).toLocaleString()} / 人</b><small>6人合計 NT$ ${Number(m.demo_premium_total||0).toLocaleString()}</small><em>非保險公司正式報價</em></div>
-   ${focus.length?`<div class="match-focus"><b>您關注的保障</b><br>${focus.slice(0,6).map(x=>'✓ '+x).join('　')}</div>`:''}
-   <div class="match-service"><b>特色服務</b><br>${(m.service||[]).slice(0,2).join('、')||'依保險公司正式服務為準'}</div>
-   ${missing.length?`<div class="match-warn">尚未涵蓋：${missing.join('、')}</div>`:''}
-   <details><summary>查看 AI 分析／完整保障</summary><div class="match-detail">${(m.reasons||[]).map(x=>'• '+x).join('<br>')}<br><br>${(m.matched||[]).map(x=>'✓ '+x).join('　')}<br><span class="match-source">商品來源：${m.source}</span></div></details>
-   <button class="match-choose" data-match="${i}" data-a="${a.accident||0}" data-m="${a.medical||0}" data-r="${a.rescue||0}">${i===1?'選這個':'查看這個方向'}</button>
-  </div>`}).join('');
- return `<div class="match-head"><small>V1.8.4.3｜AI Decision Layer</small><h2>AI已把商品縮小成最後三個決策方向</h2><p><b>需求接近度</b>越高，代表商品前三項主要保障額度與您目前設定越接近；它不是商品品質評分。AI內部仍比較完整保障與服務，但第一畫面只留下真正影響決策的資訊。</p></div><div class="match-grid">${cards}</div><div class="decision-help"><b>AI幫您做最後決策：</b>中間是目前需求的均衡方向；如果想降低保障／Demo保費可看左邊，如果希望增加保障或服務可看右邊。正式投保前仍會用保險公司最新規則與正式保費重新確認。</div><div class="match-note">⚠️ Product Master 媒合 Prototype。Demo比較保費只用來測試決策介面，不是任何保險公司的正式報價；正式可售額度、年齡資格、保費與服務須由各公司最新規則／API確認。資料檢核日：${d.checked_date}。</div>`;
-}
-async function refreshProductMatch(){if(!selectedPlan)return;let r=await fetch('/api/match-products',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selected:{accident:selectedPlan.accident,medical:selectedPlan.medical,rescue:selectedPlan.rescue}})});let d=await r.json();if(!d.ok)return;$('#productMatch').innerHTML=productMatchHtml(d);$('#productMatch').classList.remove('hidden');
- $$('#productMatch .match-choose').forEach(btn=>btn.onclick=()=>{
-   const a=+btn.dataset.a,m=+btn.dataset.m,r=+btn.dataset.r;
-   if(!a||!m||!r)return;
-   getPlan(selectedPlan.tier,{accident:a,medical:m,rescue:r});
-   $('#planResult').scrollIntoView({behavior:'smooth',block:'center'});
- });
-}
-
 async function getPlan(tier='balanced',adjust={}){
  await sync();
  let payload={tier,...adjust};
  let r=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let d=await r.json();
  if(!d.ok){bubble('<b>AI</b><br>⚠️ '+(d.error||'目前無法規劃保障'),'ai');return}
- $('#planResult').classList.remove('hidden');$('#planResult').innerHTML=planHtml(d.plan,d.options);$('#planResult').scrollIntoView({behavior:'smooth',block:'center'});
+ $('#planResult').classList.remove('hidden');$('#planResult').innerHTML=planHtml(d.plan,d.options);buildDOBPanel(); if($('#planNext')) $('#planNext').onclick=findProducts;
  $$('.tier-card,.decision-btn').forEach(x=>x.onclick=()=>getPlan(x.dataset.tier));
- $$('.amount-btn').forEach(x=>x.onclick=()=>{let a={accident:selectedPlan.accident,medical:selectedPlan.medical,rescue:selectedPlan.rescue};a[x.dataset.field]=+x.dataset.value;getPlan(selectedPlan.tier,a)}); await refreshProductMatch();
+ $$('.amount-btn').forEach(x=>x.onclick=()=>{let a={accident:selectedPlan.accident,medical:selectedPlan.medical,rescue:selectedPlan.rescue};a[x.dataset.field]=+x.dataset.value;getPlan(selectedPlan.tier,a)});
 }
 $('#plan').onclick=()=>getPlan('balanced');
 $("#reset").onclick=async()=>{await fetch("/api/reset",{method:"POST"});location.reload()};
@@ -146,10 +118,243 @@ $("#start").addEventListener("change",()=>{ if($("#start").value){$("#end").min=
 $("#end").addEventListener("change",()=>{ if($("#start").value && $("#end").value < $("#start").value){$("#end").value="";bubble("<b>AI</b><br>⚠️ 回程日不能早於啟程日，請重新選擇。","ai");} });
 
 
+
+
+function showFormError(message){
+ const old=document.getElementById("formErrorModal");if(old)old.remove();
+ const wrap=document.createElement("div");wrap.id="formErrorModal";wrap.className="form-error-backdrop";
+ wrap.innerHTML=`<div class="form-error-dialog" role="alertdialog" aria-modal="true"><div class="form-error-title">資料尚未填寫完整</div><div class="form-error-message">${message}</div><button type="button" id="formErrorOk" class="form-error-ok">確定</button></div>`;
+ document.body.appendChild(wrap);
+ const close=()=>wrap.remove();document.getElementById("formErrorOk").onclick=close;wrap.onclick=e=>{if(e.target===wrap)close()};
+}
+
+function currentDOBs(){ return $$(".traveler-dob").map(x=>x.value); }
+function buildDOBPanel(){
+ let old=currentDOBs();
+ let adults=parseInt($("#adults")?.textContent||0), children=parseInt($("#children")?.textContent||0), seniors=parseInt($("#seniors")?.textContent||0);
+ let labels=[...Array(adults)].map((_,i)=>`大人${i+1}`).concat([...Array(children)].map((_,i)=>`小孩${i+1}`)).concat([...Array(seniors)].map((_,i)=>`長輩${i+1}`));
+ let box=$("#dobPanel"); if(!box)return;
+ if(!labels.length){box.classList.add("hidden");return;}
+ box.classList.remove("hidden");
+ box.innerHTML=`<div class="dob-head"><small>商品篩選必要資料</small><h2>補上生日，AI 直接找可投保商品</h2><p><span class="helper-blue">只先填會影響資格與保費的生日；其他投保資料等選定商品後再補。</span></p></div><div class="dob-grid">${labels.map((v,i)=>`<label><span>${v}</span><input class="traveler-dob" type="date" aria-label="${v}生日" value="${old[i]||""}"></label>`).join("")}</div>`;
+}
+
+// ---------------- V1.9.3 Product Selection -> Quote ----------------
+function desiredPayload(){
+ return selectedPlan?{accident:selectedPlan.accident,medical:selectedPlan.medical,rescue:selectedPlan.rescue,
+   core:selectedPlan.core||[],extras:selectedPlan.extras||[]}:{};
+}
+function productCard(x){
+ let extras=(x.extra_coverages||[]);
+ let extraHtml=extras.length?`<div class="decision-diff"><b>多出的保障：</b>${extras.join("、")}</div>`:
+   `<div class="decision-ok">主要保障方向與目前需求接近</div>`;
+ return `<div class="product-card">
+  <div class="product-card-head"><div><small>${x.company}</small><h3>${x.name}</h3></div></div>
+  <div class="product-compact"><b>三大保障：</b>依商品正式方案／保額規則<br><b>保障項目：</b>${(x.features||[]).join("、")}</div>
+  ${extraHtml}
+  <div class="decision-service"><b>特色服務：</b>${x.service}</div>
+  <div class="rate-wait">六人保費：<b>等待官方 Rate</b></div>
+  <button class="choose-product" data-product="${x.id}">選這個</button>
+ </div>`;
+}
+async function saveDOBs(dobs){
+ if(!dobs) dobs=currentDOBs();
+ if(!dobs.length || dobs.some(x=>!x)){showFormError("請先補齊每位旅客生日。");return false}
+ let r=await fetch("/api/traveler-dobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dobs})});
+ let d=await r.json(); if(!r.ok||!d.ok){showFormError(d.error||"生日資料無法儲存。");return false}
+ return true;
+}
+async function findProducts(){
+ const btn=$("#planNext"); const dobs=currentDOBs();
+ if(!dobs.length || dobs.some(x=>!x)){showFormError("請先補齊每位旅客生日。");return}
+ if(btn){btn.disabled=true;btn.textContent="AI 正在檢查商品…"}
+ try{
+   // Current form is authoritative for traveler counts. DOBs are captured first so rerender cannot erase them.
+   await sync();
+   if(!(await saveDOBs(dobs))) return;
+   let r=await fetch("/api/product-match",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tier:selectedPlan?.tier||"balanced",desired:desiredPayload()})});
+   let d=await r.json();
+   if(!r.ok||!d.ok) throw new Error(d.error||"無法建立商品候選");
+   const box=$("#productResult"); box.classList.remove("hidden");
+   if(!d.products || !d.products.length){
+     box.innerHTML=`<div class="product-stage-head"><h2>目前沒有符合這組條件的商品</h2><p>AI 已完成資格篩選，但目前候選商品為 0。請調整保障方向或旅客條件後再試一次。</p></div>`;
+   }else{
+     box.innerHTML=`<div class="product-stage-head"><small>AI Product Engine</small><h2>AI 商品決策</h2><p>已先排除明確不適用商品。<span class="red-em">多出的保障與特色服務以紅字標示。</span></p></div><div class="product-grid">${d.products.map(productCard).join("")}</div><div class="demo-note">目前為 Prototype；正式保費仍須接官方 Rate Engine。</div>`;
+     $$(".choose-product").forEach(b=>b.onclick=()=>selectProduct(b.dataset.product));
+   }
+   box.scrollIntoView({behavior:"smooth",block:"start"});
+ }catch(err){
+   const box=$("#productResult"); if(box){box.classList.remove("hidden");box.innerHTML=`<div class="rule-alert"><b>商品決策暫時無法完成</b><br>${err.message||err}</div>`;box.scrollIntoView({behavior:"smooth",block:"start"})}
+ }finally{ if(btn){btn.disabled=false;btn.textContent="下一步：AI 幫我找可投保商品"} }
+}
+async function selectProduct(pid){
+ let r=await fetch("/api/product-select",{method:"POST",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({product_id:pid,desired:desiredPayload()})});
+ let d=await r.json(); if(!r.ok||!d.ok){showFormError(d.error||"無法建立商品試算。");return}
+ let q=d.quote,p=q.product;
+ let rows=q.person_rows.map(x=>`<tr><td>${x.group}</td><td>${x.dob||"－"}${x.age!=null?`（${x.age}歲）`:""}</td><td>NT$ ${(x.demo_premium||0).toLocaleString()}</td></tr>`).join("");
+ let concerns=[...(q.desired.core||[]),...(q.desired.extras||[])];
+ let concernHtml=concerns.length?concerns.map(x=>`<span class="quote-chip">${x}</span>`).join(""):"－";
+ $("#quoteResult").classList.remove("hidden");
+ $("#quoteResult").innerHTML=`<div class="quote-box">
+  <div class="quote-head"><div><small>Demo Quote｜${q.quote_id}</small><h2>${p.company}｜${p.name}</h2></div><span class="quote-state">Demo 試算</span></div>
+  <div class="demo-quote-alert"><b>Demo 試算保費｜非正式報價</b><br>目前只用來測試完整投保流程，未來正式商品將改接官方 Rate Engine／費率表。</div>
+  <div class="quote-need"><b>三大保障需求</b><br>意外傷害 ${q.desired.accident||"－"}萬　｜　傷害／疾病醫療 ${q.desired.medical||"－"}萬　｜　緊急救援 ${q.desired.rescue||"－"}萬</div>
+  <div class="quote-coverages"><b>本次保障項目</b><div>${concernHtml}</div></div>
+  <div class="quote-service"><b>特色服務</b><br>${p.service||"－"}</div>
+  <table class="quote-table"><thead><tr><th>旅客</th><th>生日／年齡</th><th>Demo 個人保費</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="quote-total"><span>Demo 總保費（${q.people}人）</span><strong>NT$ ${(q.demo_total||0).toLocaleString()}</strong></div>
+  <div class="quote-actions"><button type="button" id="backProducts" class="secondary">← 重新選商品</button><button type="button" id="quoteApply" class="apply-now">我要投保</button></div>
+ </div>`;
+ $("#backProducts").onclick=()=>{$("#quoteResult").classList.add("hidden");$("#productResult").scrollIntoView({behavior:"smooth",block:"start"})};
+ $("#quoteApply").onclick=()=>startDemoApplication(q);
+ $("#quoteResult").scrollIntoView({behavior:"smooth",block:"start"});
+}
+function startDemoApplication(q){
+ window.currentQuoteTotal=q.demo_total||0;
+ window.currentQuote=q;
+ showApplicationMethods(q);
+}
+function showApplicationMethods(q){
+ let old=$("#aiApplyMethod"); if(old)old.remove();
+ let box=document.createElement("section");
+ box.id="aiApplyMethod"; box.className="card ai-apply-method";
+ box.innerHTML=`<div class="apply-method-head"><small>AI 投保資料助手</small><h2>接下來，只補齊尚缺的投保資料</h2>
+ <p>AI 已建立 ${q.people||0} 位旅客資料，生日也已帶入。姓名、身分證字號、聯絡資料等尚未提供。</p></div>
+ <div class="known-data"><b>已經有的資料</b><div class="known-chips">${(q.person_rows||[]).map(x=>`<span>${x.group}｜${x.dob||"生日待補"}</span>`).join("")}</div></div>
+ <div class="method-title">您想怎麼提供剩下的資料？</div>
+ <div class="apply-method-grid">
+   <button type="button" class="apply-method-card" data-method="id"><span class="method-icon">📷</span><b>拍攝／上傳證件</b><small>AI辨識後只確認缺漏欄位</small></button>
+   <button type="button" class="apply-method-card" data-method="roster"><span class="method-icon">📄</span><b>上傳旅客名單</b><small>適合家庭或多人投保</small></button>
+   <button type="button" class="apply-method-card" data-method="manual"><span class="method-icon">⌨️</span><b>自己輸入</b><small>直接進入投保資料表單</small></button>
+ </div>
+ <div class="prototype-note">Prototype：本版先完成資料收集入口與「自己輸入」正式銜接；證件 AI 辨識與名單匯入將在下一小版接入。</div>`;
+ const quote=$("#quoteResult"); quote.insertAdjacentElement("afterend",box);
+ box.querySelectorAll(".apply-method-card").forEach(b=>b.onclick=()=>chooseApplicationMethod(b.dataset.method,q));
+ box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function chooseApplicationMethod(method,q){
+ if(method==="manual"){ openManualApplication(q); return; }
+ if(method==="id"){ openIdDocumentUpload(q); return; }
+ if(method==="roster"){ openRosterUpload(q); return; }
+}
+function openIdDocumentUpload(q){
+ let old=$("#idDocumentPanel");if(old)old.remove();
+ let box=document.createElement("div");box.id="idDocumentPanel";box.className="id-upload-box";
+ box.innerHTML=`<h3>📷 拍攝／上傳證件</h3>
+ <p>AI Vision 會讀取姓名、證件號碼與生日；只有通過 Trust Gate 的高信心欄位才會自動帶入。</p>
+ <div class="id-trust-flow"><span>證件影像</span><b>→</b><span>AI辨識證據</span><b>→</b><span>Trust Gate</span><b>→</b><span>投保資料</span></div>
+ <label class="apply-now file-pick">選擇證件圖片<input id="idDocumentFile" type="file" accept="image/png,image/jpeg,image/webp" capture="environment" hidden></label>
+ <div id="idDocumentReview"></div>`;
+ $("#aiApplyMethod").insertAdjacentElement("afterend",box);
+ $("#idDocumentFile").onchange=()=>uploadIdDocument(q);
+ box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function uploadIdDocument(q){
+ const f=$("#idDocumentFile").files?.[0];if(!f)return;
+ const fd=new FormData();fd.append("file",f);
+ $("#idDocumentReview").innerHTML='<div class="roster-loading">AI Vision 正在讀取證件…</div>';
+ let r=await fetch("/api/id-document-upload",{method:"POST",body:fd});
+ let d=await r.json();if(!r.ok||!d.ok){showFormError(d.error||"證件圖片辨識失敗。");$("#idDocumentReview").innerHTML="";return}
+ let e=d.evidence||{};window.currentIdEvidence=e;
+ const field=(label,x)=>{
+   let accepted=x?.status==="accepted";
+   let cls=accepted?"trust-accepted":"trust-needs";
+   let status=accepted?"✓ 已確認":"需要確認";
+   let conf=(x?.confidence!=null)?`<small>信心 ${(Number(x.confidence)*100).toFixed(0)}%</small>`:"";
+   return `<tr><td>${label}</td><td>${x?.value||x?.raw_text||"尚未取得"} ${conf}</td><td><span class="${cls}">${status}</span></td></tr>`;
+ };
+ $("#idDocumentReview").innerHTML=`<div class="${e.trust_gate_status==="accepted"?"trust-banner accepted":"trust-banner"}"><b>Trust Gate：${e.trust_gate_status==="accepted"?"3項資料已確認":"仍有資料需要確認"}</b><br>${e.note||""}</div>
+ <table class="quote-table"><thead><tr><th>欄位</th><th>AI辨識結果</th><th>狀態</th></tr></thead><tbody>
+ ${field("姓名",e.name)}${field("身分證字號／證件號碼",e.id_no)}${field("生日",e.dob)}</tbody></table>
+ <div class="id-next"><button type="button" id="idApplyEvidence" class="apply-now">確認並帶入投保資料</button></div>`;
+ $("#idApplyEvidence").onclick=()=>applyIdEvidence(q,e);
+}
+function applyIdEvidence(q,e){
+ openManualApplication(q);
+ // V1.9.4.5 treats one uploaded document as the applicant / first insured candidate.
+ // Only Trust-Gate accepted fields are auto-filled.
+ const setAccepted=(selector,field)=>{
+   const el=$(selector);
+   if(el && field?.status==="accepted" && field?.value){
+     el.value=field.value;el.classList.add("ai-prefilled");el.title="AI Vision 高信心辨識＋Trust Gate 已確認";
+   }
+ };
+ setAccepted("#applicantName",e.name);setAccepted("#applicantId",e.id_no);setAccepted("#applicantDob",e.dob);
+ setAccepted("#insuredName1",e.name);setAccepted("#insuredId1",e.id_no);setAccepted("#insuredDob1",e.dob);
+ const missing=["姓名","身分證字號","生日"].filter((_,i)=>[e.name,e.id_no,e.dob][i]?.status!=="accepted");
+ if(missing.length){
+   setTimeout(()=>showFormError("AI 已帶入可確認的資料；請再確認／補齊："+missing.join("、")+"。"),250);
+ }
+}
+function openRosterUpload(q){
+ let old=$("#rosterUploadPanel"); if(old)old.remove();
+ let box=document.createElement("div");box.id="rosterUploadPanel";box.className="roster-upload-box";
+ box.innerHTML=`<h3>📄 上傳旅客名單</h3>
+ <p>適合家庭或多人投保。先上傳 Excel，系統會檢查人數、生日差異與缺漏欄位，再由您確認是否套用。</p>
+ <div class="roster-actions"><a class="secondary roster-template" href="/static/%E6%97%85%E5%AE%A2%E5%90%8D%E5%96%AE%E4%B8%8A%E5%82%B3%E7%AF%84%E6%9C%AC_V1.xlsx">下載 Excel 範本</a>
+ <label class="apply-now file-pick">選擇 Excel<input id="rosterFile" type="file" accept=".xlsx" hidden></label></div>
+ <div id="rosterReview"></div>`;
+ $("#aiApplyMethod").insertAdjacentElement("afterend",box);
+ $("#rosterFile").onchange=()=>uploadRoster(q);
+ box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+async function uploadRoster(q){
+ const f=$("#rosterFile").files?.[0];if(!f)return;
+ const fd=new FormData();fd.append("file",f);
+ $("#rosterReview").innerHTML='<div class="roster-loading">正在讀取旅客名單…</div>';
+ let r=await fetch("/api/roster-upload",{method:"POST",body:fd});
+ let d=await r.json();if(!r.ok||!d.ok){showFormError(d.error||"旅客名單讀取失敗。");$("#rosterReview").innerHTML="";return}
+ window.currentRoster=d.people;
+ let warn=(d.warnings||[]).map(x=>`<div class="roster-warning">⚠️ ${x}</div>`).join("");
+ let rows=d.people.map((x,i)=>`<tr><td>${i+1}</td><td>${x.name||'<span class="missing">待補</span>'}</td><td>${x.id_no||'<span class="missing">待補</span>'}</td><td>${x.dob||'<span class="missing">待補</span>'}</td><td>${x.relation||"－"}</td><td>${x.missing.length?'<span class="missing">'+x.missing.join("、")+'</span>':'完整'}</td></tr>`).join("");
+ $("#rosterReview").innerHTML=`${warn}<div class="roster-summary">已讀取 <b>${d.count}</b> 位旅客${d.expected?`｜行程設定 ${d.expected} 人`:""}</div>
+ <div class="roster-table-wrap"><table class="quote-table"><thead><tr><th>#</th><th>姓名</th><th>身分證字號</th><th>生日</th><th>關係</th><th>待補資料</th></tr></thead><tbody>${rows}</tbody></table></div>
+ <div class="roster-confirm"><button type="button" id="applyRoster" class="apply-now">確認並帶入投保資料</button></div>`;
+ $("#applyRoster").onclick=()=>applyRosterToForm(q,d.people);
+}
+function applyRosterToForm(q,people){
+ openManualApplication(q);
+ people.forEach((x,i)=>{
+   let n=i+1;
+   let name=$("#insuredName"+n),id=$("#insuredId"+n),dob=$("#insuredDob"+n);
+   if(name&&x.name)name.value=x.name;
+   if(id&&x.id_no)id.value=x.id_no;
+   if(dob&&x.dob){dob.value=x.dob;dob.classList.add("ai-prefilled");}
+ });
+ // If the first roster row is the applicant ("本人"), reuse available contact data.
+ let self=people.find(x=>x.relation==="本人")||people[0];
+ if(self){
+   if($("#applicantName")&&!$("#applicantName").value)$("#applicantName").value=self.name||"";
+   if($("#applicantId")&&!$("#applicantId").value)$("#applicantId").value=self.id_no||"";
+   if($("#applicantDob")&&!$("#applicantDob").value)$("#applicantDob").value=self.dob||"";
+   if($("#applicantPhone")&&!$("#applicantPhone").value)$("#applicantPhone").value=self.phone||"";
+   if($("#applicantEmail")&&!$("#applicantEmail").value)$("#applicantEmail").value=self.email||"";
+ }
+}
+function openManualApplication(q){
+ renderInsured();
+ // Reuse birthdays already collected upstream; customer should not type them again.
+ (q.person_rows||[]).forEach((x,i)=>{
+   const dob=$("#insuredDob"+(i+1)); if(dob && x.dob){dob.value=x.dob;dob.classList.add("ai-prefilled");dob.title="已由前一步旅客生日自動帶入，可修正";}
+ });
+ $("#applyPanel").classList.remove("hidden");
+ $("#applyPanel").style.display="block";
+ $("#applyPanel").scrollIntoView({behavior:"smooth",block:"start"});
+ setTimeout(()=>{
+   if(!$("#toUnderwriting")){
+     let b=document.createElement("div");b.className="to-uw-wrap";
+     b.innerHTML='<button type="button" id="toUnderwriting" class="apply-now">投保資料完成，進入確認／核保</button>';
+     $("#applyPanel").appendChild(b);$("#toUnderwriting").onclick=showUnderwritingPanel;
+   }
+ },0);
+}
+document.addEventListener("click",e=>{if(e.target?.id==="findProducts")findProducts()});
+
 function renderInsured(){const txt=document.querySelector("#profile .card:nth-child(3)")?.textContent||"";const n=+(txt.match(/合計\s*(\d+)/)?.[1]||1),box=$("#insuredSection");if(n<=1){box.innerHTML="";return}let h='<div class="insured-wrap"><h2>被保險人資料</h2>';for(let i=1;i<=n;i++)h+=`<div class="insured-card"><h3>被保險人 ${i}</h3><div class="apply-grid"><label>姓名 <span class="same"><input type="checkbox" class="sameApplicant" data-i="${i}"> 同要保人</span><input id="insuredName${i}"></label><label>身分證字號<input id="insuredId${i}"></label><label>出生日期<input id="insuredDob${i}" type="date"></label></div></div>`;box.innerHTML=h+'</div>';
     (window.documentPassengers||[]).forEach((p,i)=>{const el=$("#insuredName"+(i+1));if(el&&!el.value)el.value=p.name||""});
     $$(".sameApplicant").forEach(x=>x.onchange=()=>{let i=x.dataset.i;if(x.checked){$("#insuredName"+i).value=$("#applicantName").value;$("#insuredId"+i).value=$("#applicantId").value;$("#insuredDob"+i).value=$("#applicantDob").value}})}
-document.addEventListener("click",e=>{if(e.target?.id==="applyNow"){renderInsured();$("#applyPanel").classList.remove("hidden");$("#applyPanel").scrollIntoView({behavior:"smooth"})}if(e.target?.id==="backPlan"){$("#applyPanel").classList.add("hidden")}if(e.target?.id==="confirmData"){for(const [id,n] of [["applicantName","姓名"],["applicantId","身分證字號"],["applicantDob","出生日期"],["applicantPhone","手機"],["applicantEmail","Email"],["applicantAddress","聯絡地址"]])if(!$("#"+id).value.trim()){alert("請填寫要保人"+n);return}for(let i=1;i<=$$(".insured-card").length;i++)if(!$("#insuredName"+i).value.trim()||!$("#insuredId"+i).value.trim()||!$("#insuredDob"+i).value){alert(`請完成被保險人 ${i} 資料`);return}$("#applyPanel").classList.add("hidden");$("#paymentAmount").textContent="NT$ "+(selectedPlan?.total||0).toLocaleString();$("#paymentPanel").classList.remove("hidden");$("#paymentPanel").scrollIntoView({behavior:"smooth"})}if(e.target?.id==="backData"){$("#paymentPanel").classList.add("hidden");$("#applyPanel").classList.remove("hidden")}if(e.target?.id==="payDemo")alert("Demo：信用卡繳款流程測試完成，不會進行真實交易。")});
+document.addEventListener("click",e=>{if(e.target?.id==="applyNow"){renderInsured();$("#applyPanel").classList.remove("hidden");$("#applyPanel").scrollIntoView({behavior:"smooth"})}if(e.target?.id==="backPlan"){$("#applyPanel").classList.add("hidden")}if(e.target?.id==="confirmData"){for(const [id,n] of [["applicantName","姓名"],["applicantId","身分證字號"],["applicantDob","出生日期"],["applicantPhone","手機"],["applicantEmail","Email"],["applicantAddress","聯絡地址"]])if(!$("#"+id).value.trim()){alert("請填寫要保人"+n);return}for(let i=1;i<=$$(".insured-card").length;i++)if(!$("#insuredName"+i).value.trim()||!$("#insuredId"+i).value.trim()||!$("#insuredDob"+i).value){alert(`請完成被保險人 ${i} 資料`);return}$("#applyPanel").classList.add("hidden");let qt=window.currentQuoteTotal||selectedPlan?.total||0;$("#paymentAmount").textContent="NT$ "+qt.toLocaleString();$("#paymentPanel").classList.remove("hidden");$("#paymentPanel").scrollIntoView({behavior:"smooth"})}if(e.target?.id==="backData"){$("#paymentPanel").classList.add("hidden");$("#applyPanel").classList.remove("hidden")}if(e.target?.id==="payDemo")alert("Demo：信用卡繳款流程測試完成，不會進行真實交易。")});
 
 $("#guideBtn").onclick=()=>$("#guideBox").classList.toggle("hidden");
 
@@ -488,3 +693,63 @@ function v1711FlightEvidence(d){
  }).join("<br>");
 }
 function v1711HasFullTrip(d){return (d?.segments||[]).length>=2 && !!d.start && !!d.end}
+
+// V1.9.3.1: after AI planning, surface only the minimum data needed for product/rate filtering.
+document.addEventListener("click",e=>{
+ if(e.target && (e.target.id==="planBtn" || e.target.id==="aiPlan" || (e.target.textContent||"").includes("AI 幫我規劃保障"))){
+   setTimeout(buildDOBPanel,250);
+ }
+});
+
+function simplifyPlanFooter(){
+ const plan=$("#planResult"); if(!plan) return;
+ plan.querySelectorAll("button").forEach(b=>{
+   const t=(b.textContent||"").trim();
+   if(t==="查看" || t.includes("查看保障")) b.style.display="none";
+ });
+ plan.querySelectorAll("*").forEach(el=>{
+   if(el.children.length) return;
+   let t=(el.textContent||"").trim();
+   if(t.includes("已納入") && t.includes("核心保障")){
+     const m=t.match(/(\d+)\s*項核心保障/);
+     el.textContent=`已納入 ${m?m[1]:"6"} 項核心保障　✓核心保障 ＋新增保障`;
+   }
+ });
+ simplifyCoverageLabels();
+}
+const _v19312Observer=new MutationObserver(()=>{simplifyPlanFooter();simplifyCoverageLabels();});
+document.addEventListener("DOMContentLoaded",()=>{
+ const target=document.body; if(target)_v19312Observer.observe(target,{childList:true,subtree:true});
+});
+
+// ===== V1.9.5 投保確認＋核保流程 =====
+function showUnderwritingPanel(){
+ let old=$("#underwritingPanel");if(old)old.remove();
+ let q=window.currentQuote||{};
+ let box=document.createElement("section");box.id="underwritingPanel";box.className="card uw-panel";
+ box.innerHTML=`<div class="uw-head"><small>投保確認＋核保檢核</small><h2>最後確認後，系統先做投保資格檢核</h2>
+ <p>只確認會影響承保的必要事項；已提供過的旅客、生日與商品資料不再重問。</p></div>
+ <div class="uw-summary"><div><b>商品</b><span>${q.product?.company||"－"}｜${q.product?.name||"－"}</span></div>
+ <div><b>旅客</b><span>${q.people||"－"} 人</span></div><div><b>保費</b><span>Demo NT$ ${(window.currentQuoteTotal||0).toLocaleString()}</span></div></div>
+ <div class="uw-checks">
+ <label><input type="checkbox" id="uwTruth"> 我確認本次提供的投保資料正確完整。</label>
+ <label><input type="checkbox" id="uwTerms"> 我已閱讀並同意本 Prototype 的投保聲明與資料使用說明。</label>
+ <label><input type="checkbox" id="uwDisclosure"> 本次投保沒有其他需要主動補充、可能影響承保的重要事項。</label></div>
+ <div class="uw-note">正式上線時，此區會依正式商品載入告知事項、核保問題、法定同意內容及電子簽署紀錄。</div>
+ <div class="uw-actions"><button type="button" id="runUW" class="apply-now">確認並進行核保檢核</button></div><div id="uwResult"></div>`;
+ $("#applyPanel").insertAdjacentElement("afterend",box);$("#runUW").onclick=runUnderwriting;
+ box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function runUnderwriting(){
+ if(!$("#uwTruth").checked||!$("#uwTerms").checked||!$("#uwDisclosure").checked){showFormError("請先完成三項投保確認。");return}
+ let q=window.currentQuote||{},people=q.person_rows||[];
+ if(people.some(x=>!x.dob)){$("#uwResult").innerHTML='<div class="uw-block">需要補件：仍有旅客生日未完成，暫時不能進入下一步。</div>';return}
+ $("#uwResult").innerHTML=`<div class="uw-pass"><b>✓ Prototype 核保檢核通過</b><p>旅客基本資格與必要確認已完成，可以進入繳費階段。</p><small>此結果僅為 Demo 流程，不代表任何保險公司的正式承保決定。</small></div>
+ <div class="uw-actions"><button type="button" id="uwToPayment" class="apply-now">下一步：繳費</button></div>`;
+ $("#uwToPayment").onclick=goPaymentFromUW;
+}
+function goPaymentFromUW(){
+ let payment=$("#paymentPanel")||$("#payment");
+ if(payment){payment.classList.remove("hidden");payment.style.display="block";if($("#paymentAmount"))$("#paymentAmount").textContent="NT$ "+(window.currentQuoteTotal||0).toLocaleString();payment.scrollIntoView({behavior:"smooth",block:"start"});return}
+ showFormError("核保檢核已完成；下一版將把這裡正式銜接到繳費頁。");
+}

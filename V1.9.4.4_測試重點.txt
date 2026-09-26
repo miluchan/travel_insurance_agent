@@ -1,0 +1,24 @@
+V1.9.4.4｜證件影像 + Trust Gate 第一階段
+
+本版目的：
+先把「📷拍攝／上傳證件」從假入口改成真正可操作的證件上傳與 Trust Gate 流程骨架。
+
+流程：
+Demo Quote → 我要投保 → AI投保資料助手
+→ 📷拍攝／上傳證件
+→ 選擇 PNG/JPG/JPEG/WEBP
+→ 建立辨識證據
+→ Trust Gate
+→ 繼續補齊投保資料
+
+重要安全原則：
+1. 本版不從檔名、圖片 metadata 或其他方式猜姓名／身分證字號／生日。
+2. 尚未接正式證件 Vision parser，所以三個欄位會顯示「需要確認」。
+3. 這是刻意的：先驗證 UI 與 Trust Gate，再接真正 Vision，避免 AI 幻覺直接進正式投保資料。
+4. 只有未來 Trust Gate = accepted 的欄位才能自動帶入。
+5. 請用測試／遮罩證件圖片，不要使用真實敏感個資。
+
+下一小版：
+接既有 Vision 架構，讓證件辨識輸出：
+value + confidence + status(accepted / needs_confirmation / rejected)
+再由 Trust Gate 決定哪些欄位自動填入、哪些欄位請客戶確認。
